@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Swiss Water Simulator</title>
+    <meta
+      name="description"
+      content="Dam any river in Switzerland and watch the water rise: a 3D map with real terrain, rivers and a live water simulation."
+    />
+    <meta property="og:title" content="Swiss Water Simulator" />
+    <meta
+      property="og:description"
+      content="Dam any river in Switzerland and watch the water rise, on real swisstopo terrain."
+    />
+    <meta property="og:type" content="website" />
+    <script type="module" crossorigin src="./assets/index-CBT4Bx7M.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Dg2TPu7a.css">
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <header class="panel title-panel">
+      <div class="title-row">
+        <h1>Swiss Water Simulator</h1>
+        <span id="sim-support" class="badge"></span>
+      </div>
+      <button id="assumptions-open" type="button" class="link-button">Model assumptions</button>
+      <div class="search">
+        <input id="search-input" type="search" placeholder="Search a place, e.g. Zernez" autocomplete="off" />
+        <ul id="search-results"></ul>
+      </div>
+    </header>
+
+    <div id="map-labels" class="map-labels"></div>
+
+    <div id="info" class="panel info-panel" hidden></div>
+
+    <section id="zone-panel" class="panel zone-panel">
+      <div class="panel-head">
+        <h2 id="zone-title">Simulate a zone</h2>
+        <button id="panel-toggle" type="button" class="icon-button" aria-expanded="true" title="Hide the panel">▾</button>
+      </div>
+      <div id="panel-body">
+        <p id="zone-desc" class="muted"></p>
+        <div id="zone-warnings" class="warnings"></div>
+        <div class="sim-row">
+          <span>Zone size</span>
+          <select id="zone-size"></select>
+        </div>
+        <div class="buttons">
+          <button id="zone-pick" type="button">Pick a spot</button>
+          <button id="zone-example" type="button">Engadine example</button>
+        </div>
+        <p id="zone-pick-hint" class="hint-text" hidden>Click on the map where you want to simulate.</p>
+        <div id="zone-actions" class="buttons" hidden>
+          <button id="zone-fly" type="button">Fly there</button>
+          <button id="zone-load" type="button" class="primary">Load zone</button>
+        </div>
+        <div id="zone-progress" hidden>
+          <progress id="zone-progress-bar" value="0" max="1"></progress>
+          <p id="zone-progress-text" class="muted"></p>
+        </div>
+        <div id="zone-ready" hidden>
+          <details class="section" open>
+            <summary>Dams</summary>
+            <div class="buttons">
+              <button id="dam-draw" type="button">Draw a dam</button>
+              <button id="dam-suggest" type="button">Suggested site</button>
+            </div>
+            <p id="dam-hint" class="hint-text" hidden></p>
+            <div id="dam-editor" hidden>
+              <label for="dam-height-slider">Dam height</label>
+              <div class="level-row">
+                <input id="dam-height-slider" type="range" min="0.5" step="0.5" />
+                <input id="dam-height-input" type="number" min="0.5" step="0.5" /> m
+              </div>
+              <div id="dam-presets" class="presets"></div>
+              <div id="dam-stats" class="dam-stats"></div>
+              <div id="dam-warnings" class="warnings"></div>
+              <div class="buttons">
+                <button id="dam-confirm" type="button" class="primary">Build this dam</button>
+                <button id="dam-cancel" type="button">Cancel</button>
+              </div>
+            </div>
+            <ul id="dam-list" class="dam-list"></ul>
+            <p id="dam-list-empty" class="muted">No dams yet.</p>
+          </details>
+
+          <details class="section" open>
+            <summary>What changed</summary>
+            <label class="checkbox"><input id="insight-show" type="checkbox" checked /> Show on the map</label>
+            <div id="insights" class="insights"><p class="muted">Build a dam to see what changes.</p></div>
+          </details>
+
+          <details class="section" open>
+            <summary>Time</summary>
+            <div class="buttons">
+              <button id="sim-play" type="button" class="primary">Play</button>
+              <button id="sim-reset" type="button">Reset</button>
+            </div>
+            <div class="sim-row">
+              <span>Speed</span>
+              <select id="sim-speed">
+                <option value="1">Real time</option>
+                <option value="60">1 min per second</option>
+                <option value="600" selected>10 min per second</option>
+                <option value="3600">1 hour per second</option>
+                <option value="86400">1 day per second</option>
+                <option value="604800">1 week per second</option>
+                <option value="2592000">1 month per second</option>
+              </select>
+            </div>
+            <div class="sim-row">
+              <span>Simulated time</span>
+              <strong id="sim-clock">0 s</strong>
+            </div>
+            <p class="mode"><strong id="sim-mode"></strong> <span id="sim-mode-why" class="muted"></span></p>
+            <p id="sim-rate" class="muted"></p>
+            <button id="sim-skip" type="button" class="wide">Skip to where it settles</button>
+            <p id="sim-skip-result" class="muted"></p>
+            <div id="lake-status" class="lake-status"></div>
+          </details>
+
+          <details class="tests">
+            <summary>Tests</summary>
+            <label for="level-slider">Water level test</label>
+            <p class="muted">
+              Fills everything below this level that connects to the main river, like a bathtub (no dam). It checks that
+              our elevation data matches the map. It pauses the simulation.
+            </p>
+            <div class="level-row">
+              <input id="level-slider" type="range" />
+              <input id="level-input" type="number" step="1" /> m
+            </div>
+            <p id="level-stats" class="muted"></p>
+            <label class="checkbox"><input id="sim-rain" type="checkbox" /> Rain test (50 mm/h storm)</label>
+            <p id="sim-info" class="muted"></p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <p class="panel hint">Drag to move · Scroll to zoom · Right-drag to tilt · Click a river</p>
+
+    <dialog id="welcome" class="assumptions welcome">
+      <h2 tabindex="-1" autofocus>Welcome to the Swiss Water Simulator</h2>
+      <p>What would happen if you dammed a Swiss river? Find out on real terrain and real river flows.</p>
+      <ol>
+        <li><strong>Pick a spot</strong> in a valley, or start with the Engadine example.</li>
+        <li><strong>Draw a dam</strong> across the river and choose its height, from a beaver dam to Grande Dixence.</li>
+        <li><strong>Speed up time</strong> and watch the lake fill: see which villages, roads and islands appear.</li>
+      </ol>
+      <p class="muted">
+        Works best on a laptop or desktop with Chrome, Edge, Safari or Firefox. This is a visualisation with
+        simplifications (see "Model assumptions"), not an engineering tool.
+      </p>
+      <form method="dialog" class="buttons">
+        <button value="explore">Explore on my own</button>
+        <button value="example" class="primary">Try the Engadine example</button>
+      </form>
+    </dialog>
+
+    <dialog id="assumptions" class="assumptions">
+      <h2 tabindex="-1" autofocus>Model assumptions</h2>
+      <p>
+        This is a visualisation, not an engineering tool. It uses real terrain and real average river flows, but
+        simplifies a lot. Here's what to keep in mind.
+      </p>
+      <h3>Water</h3>
+      <ul>
+        <li>Rivers carry their <strong>long-term average flow</strong>: no floods, droughts or seasons.</li>
+        <li>Flows are <strong>natural</strong> (BAFU model, 1981–2000): existing hydropower diversions are ignored.</li>
+        <li>Rain falling inside the zone is not added (except in the rain test).</li>
+        <li>No groundwater, evaporation, ice, snowmelt timing or sediment.</li>
+        <li>
+          Rivers flow on top of the elevation data. Laser surveys see the water surface, not the riverbed, so real
+          channels are a little deeper.
+        </li>
+        <li>
+          Existing lakes are flat surfaces in the data, with no depth. A river flowing into a large lake first spreads
+          a thin layer over it before flowing out (real lakes buffer flows in a similar way).
+        </li>
+        <li>The simulation uses 8 m cells, so streams narrower than about 8 m are smeared out.</li>
+      </ul>
+      <h3>Dams</h3>
+      <ul>
+        <li>Dams appear instantly, are completely watertight and never fail.</li>
+        <li>Water only leaves over the crest: no spillway gates, bottom outlets or turbines.</li>
+        <li>Overflow follows the standard weir formula.</li>
+      </ul>
+      <h3>Time and the zone</h3>
+      <ul>
+        <li>
+          Above 1 hour per second, lakes fill by their volume (inflow minus overflow) with a flat surface; rivers
+          outside the lakes are paused.
+        </li>
+        <li>
+          Only the chosen zone (6–16 km wide) is simulated. Its edges are walls, except where valleys naturally leave
+          the zone. A lake can't grow beyond the zone; the app warns when it reaches an edge. Areas outside
+          Switzerland have no elevation data and act as high walls.
+        </li>
+        <li>
+          Incoming rivers and their flows are found automatically from the BAFU river network; very small trickles
+          (under 0.03 m³/s) are left out. Some rivers have no name in our data and show as "unnamed".
+        </li>
+        <li>
+          "Under water" means at least 30 cm deep in a dam's lake. Buildings, roads and places come from
+          swisstopo's base map; bridges and tunnels are not counted.
+        </li>
+      </ul>
+      <h3>Data</h3>
+      <p class="muted">
+        Terrain, aerial images, lakes, place names, buildings and roads © swisstopo. River network and mean discharge:
+        FOEN/BAFU. More detail in DECISIONS.md in the project.
+      </p>
+      <form method="dialog"><button class="primary">Close</button></form>
+    </dialog>
+
+    <footer class="credits">
+      Terrain, imagery, lakes, buildings, roads &amp; names ©
+      <a href="https://www.swisstopo.admin.ch" target="_blank" rel="noopener">swisstopo</a>
+      · Rivers &amp; discharge: <a href="https://www.bafu.admin.ch" target="_blank" rel="noopener">FOEN/BAFU</a>
+      · Not affiliated with swisstopo or FOEN/BAFU
+    </footer>
+
+  </body>
+</html>
